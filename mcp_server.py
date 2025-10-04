@@ -158,10 +158,17 @@ def fibonacci_numbers(n: int) -> list:
 
 @mcp.tool()
 async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
-    """Draw a rectangle in Paint from (x1,y1) to (x2,y2)"""
+    """Draw a rectangle in Paint from (x1,y1) to (x2,y2). Must call open_paint first."""
     global paint_app
+    
+    print("\n" + "="*60)
+    print(f"DRAW_RECTANGLE CALLED: ({x1},{y1}) to ({x2},{y2})")
+    print("="*60)
+    
     try:
+        # Check if Paint is open
         if not paint_app:
+            print("ERROR: paint_app is None - Paint not opened!")
             return {
                 "content": [
                     TextContent(
@@ -171,52 +178,59 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
                 ]
             }
         
+        print("✓ Paint app is open")
+        
         # Get the Paint window
-        print("DEBUG: Getting Paint window...")
+        print("Step 1: Getting Paint window...")
         paint_window = paint_app.window(class_name='MSPaintApp')
+        print("✓ Got Paint window")
         
         # Ensure Paint window is active
-        print("DEBUG: Activating Paint window...")
+        print("Step 2: Activating Paint window...")
         if not paint_window.has_focus():
             paint_window.set_focus()
             time.sleep(0.5)
+            print("✓ Paint window focused")
+        else:
+            print("✓ Paint window already focused")
         
-        print(f"DEBUG: Drawing rectangle from ({x1},{y1}) to ({x2},{y2})")
-        
-        # Click on the Rectangle tool in the ribbon at the specified coordinates
+        # Step 3: Click Rectangle Tool
         rectangle_tool_coords = (658, 103)
-        print(f"DEBUG: Clicking rectangle tool at {rectangle_tool_coords}")
+        print(f"\nStep 3: Clicking rectangle tool at {rectangle_tool_coords}")
         try:
-            # Use click instead of click_input for more reliable clicking
             paint_window.click(coords=rectangle_tool_coords)
-            time.sleep(0.5)  # Give Paint time to select the tool
-            print("DEBUG: Rectangle tool clicked successfully")
+            time.sleep(0.5)
+            print("✓ Rectangle tool clicked (using .click())")
         except Exception as e:
-            print(f"DEBUG: Error clicking rectangle tool: {e}")
-            # Fallback to click_input
+            print(f"⚠ .click() failed: {e}, trying .click_input()...")
             paint_window.click_input(coords=rectangle_tool_coords)
             time.sleep(0.5)
+            print("✓ Rectangle tool clicked (using .click_input())")
         
-        # Get the canvas area
-        print("DEBUG: Getting canvas area...")
+        # Step 4: Get canvas
+        print("\nStep 4: Getting canvas area...")
         canvas = paint_window.child_window(class_name='MSPaintView')
+        print("✓ Got canvas")
         
-        # Draw rectangle - coordinates are relative to the Paint window
-        # Typical starting point: (366, 399) for top-left corner
-        # No offset needed since we're on primary monitor now
-        print(f"DEBUG: Starting to draw - Pressing mouse at ({x1},{y1})")
+        # Step 5: Draw rectangle with mouse drag
+        print(f"\nStep 5: Drawing rectangle...")
+        print(f"  a) Press mouse at START point: ({x1},{y1})")
         canvas.press_mouse_input(coords=(x1, y1))
-        time.sleep(0.1)
+        time.sleep(0.15)
+        print(f"  ✓ Mouse pressed at ({x1},{y1})")
         
-        print(f"DEBUG: Dragging to ({x2},{y2})")
+        print(f"  b) Drag to END point: ({x2},{y2})")
         canvas.move_mouse_input(coords=(x2, y2))
-        time.sleep(0.1)
+        time.sleep(0.15)
+        print(f"  ✓ Mouse dragged to ({x2},{y2})")
         
-        print(f"DEBUG: Releasing mouse at ({x2},{y2})")
+        print(f"  c) Release mouse at ({x2},{y2})")
         canvas.release_mouse_input(coords=(x2, y2))
         time.sleep(0.2)
+        print(f"  ✓ Mouse released")
         
-        print(f"DEBUG: Rectangle drawn successfully!")
+        print("\n✅ RECTANGLE DRAWN SUCCESSFULLY!")
+        print("="*60 + "\n")
         
         return {
             "content": [
@@ -227,11 +241,16 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
             ]
         }
     except Exception as e:
+        error_msg = f"Error drawing rectangle: {str(e)}"
+        print(f"\n❌ ERROR: {error_msg}")
+        print("="*60 + "\n")
+        import traceback
+        traceback.print_exc()
         return {
             "content": [
                 TextContent(
                     type="text",
-                    text=f"Error drawing rectangle: {str(e)}"
+                    text=error_msg
                 )
             ]
         }
@@ -308,16 +327,25 @@ async def open_paint() -> dict:
     try:
         # Check if Paint is already open
         if paint_app is not None:
+            print("\n" + "="*60)
             print("DEBUG: Paint is already open, skipping open_paint")
+            
+            # Still get and display monitor dimensions for reference
+            primary_width = GetSystemMetrics(0)
+            primary_height = GetSystemMetrics(1)
+            print(f"DEBUG: Monitor dimensions: {primary_width}x{primary_height}")
+            print("="*60 + "\n")
+            
             return {
                 "content": [
                     TextContent(
                         type="text",
-                        text="Paint is already open. No need to open again."
+                        text=f"Paint is already open. Monitor: {primary_width}x{primary_height}"
                     )
                 ]
             }
         
+        print("\n" + "="*60)
         print("DEBUG: Starting Paint application...")
         paint_app = Application().start('mspaint.exe')
         time.sleep(0.5)
@@ -345,6 +373,7 @@ async def open_paint() -> dict:
         time.sleep(0.8)  # Give Paint time to maximize and stabilize
         
         print("DEBUG: Paint opened and maximized successfully")
+        print("="*60 + "\n")
         
         return {
             "content": [
@@ -356,6 +385,7 @@ async def open_paint() -> dict:
         }
     except Exception as e:
         print(f"DEBUG: Error opening Paint: {str(e)}")
+        print("="*60 + "\n")
         return {
             "content": [
                 TextContent(
