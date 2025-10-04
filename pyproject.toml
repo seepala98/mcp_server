@@ -12,4 +12,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "google-genai>=0.3.0",
     "pywin32>=306",
+    "pyautogui>=0.9.54",
+]
+
+[tool.uv.workspace]
+members = [
+    "files",
 ]

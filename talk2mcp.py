@@ -29,7 +29,7 @@ async def generate_with_timeout(client, prompt, timeout=10):
             loop.run_in_executor(
                 None, 
                 lambda: client.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model="gemini-2.0-flash-lite",
                     contents=prompt
                 )
             ),
@@ -131,21 +131,21 @@ Important:
 - When a function returns multiple values (like arrays), you need to process all of them
 - When passing arrays as parameters, use comma-separated values: value1,value2,value3
 - After calculating the final answer, you MUST visualize it in Paint using this EXACT sequence:
-  * First call: open_paint_and_select_rectangle|rect_tool_x|rect_tool_y (e.g., open_paint_and_select_rectangle|658|103)
+  * First call: open_paint_and_select_rectangle|rect_tool_x|rect_tool_y (e.g., open_paint_and_select_rectangle|530|85)
     - This opens Paint, maximizes it, and clicks the rectangle tool
     - CALL THIS ONLY ONCE
-  * Second call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|366|399|766|649)
+  * Second call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|250|250|1702|922)
     - This draws the rectangle by clicking and dragging from (x1,y1) to (x2,y2)
   * Third call: add_text_in_paint|your_final_answer (e.g., add_text_in_paint|FINAL_ANSWER: [42])
     - This adds text inside the rectangle
 - Do not repeat function calls with the same parameters
-- Rectangle should start at (366, 399) and extend to appropriate bottom-right coordinates
+- Rectangle should start at (250, 250) and extend to appropriate bottom-right coordinates
 
 Examples:
 - FUNCTION_CALL: strings_to_chars_to_int|INDIA
 - FUNCTION_CALL: int_list_to_exponential_sum|73,78,68,73,65
-- FUNCTION_CALL: open_paint_and_select_rectangle|658|103
-- FUNCTION_CALL: draw_rectangle|366|399|766|649
+- FUNCTION_CALL: open_paint_and_select_rectangle|530|85
+- FUNCTION_CALL: draw_rectangle|250|250|1702|922
 - FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
 
 DO NOT include any explanations or additional text.
@@ -160,7 +160,7 @@ Your entire response should be a single line starting with FUNCTION_CALL:"""
                 
                 # Increase max iterations to allow for Paint operations
                 max_iterations_extended = 10
-                
+                executed_calls = set()
                 current_query = query
                 while iteration < max_iterations_extended:
                     print(f"\n--- Iteration {iteration + 1} ---")
@@ -197,6 +197,16 @@ Your entire response should be a single line starting with FUNCTION_CALL:"""
                         print(f"DEBUG: Split parts: {parts}")
                         print(f"DEBUG: Function name: {func_name}")
                         print(f"DEBUG: Raw parameters: {params}")
+                        
+                        # Prevent duplicates
+                        call_signature = f"{func_name}|{'|'.join(params)}"
+                        if call_signature in executed_calls:
+                            print(f"⚠️ Skipping duplicate call: {call_signature}")
+                            iteration_response.append(f"Skipped duplicate call: {call_signature}")
+                            iteration += 1
+                            continue  # skip calling the tool
+
+                        executed_calls.add(call_signature)  # mark as executed
                         
                         try:
                             # Find the matching tool to get its input schema
