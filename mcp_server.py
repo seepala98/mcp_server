@@ -151,34 +151,71 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
         return {"content": [TextContent(type="text", text=f"Error: {str(e)}")]}
 
 @mcp.tool()
-async def add_text_in_paint(text: str) -> dict:
+async def add_text_in_paint(text: str, text_tool_x: int, text_tool_y: int, text_box_x1: int, text_box_y1: int, text_box_x2: int, text_box_y2: int) -> dict:
+    """Add text in Paint. Click text tool, create text box, and paste text.
+    Example: add_text_in_paint|FINAL_ANSWER: 42|347|98|400|400|800|500"""
+    print("\n" + "="*60)
+    print(f"ADD_TEXT_IN_PAINT CALLED")
+    print(f"Text: {text}")
+    print(f"Text tool: ({text_tool_x}, {text_tool_y})")
+    print(f"Text box: ({text_box_x1},{text_box_y1}) to ({text_box_x2},{text_box_y2})")
+    print("="*60)
+    
     try:
-        # Activate Text Tool
-        pyautogui.click(347, 98)
-        time.sleep(1)
+        # Step 1: Click Text Tool
+        print(f"Step 1: Clicking text tool at ({text_tool_x}, {text_tool_y})...")
+        pyautogui.click(text_tool_x, text_tool_y)
+        time.sleep(0.8)
+        print("[OK] Text tool clicked")
 
-        # Click and drag to create text box inside rectangle
-        canvas_x1, canvas_y1 = 400, 400  # top-left inside rectangle
-        canvas_x2, canvas_y2 = 800, 500  # bottom-right of text box
+        # Step 2: Create text box by dragging
+        print(f"\nStep 2: Creating text box from ({text_box_x1},{text_box_y1}) to ({text_box_x2},{text_box_y2})...")
+        
+        print(f"  a) Moving to start position...")
+        pyautogui.moveTo(text_box_x1, text_box_y1)
+        time.sleep(0.2)
+        print(f"  [OK] At start position")
+        
+        print(f"  b) Pressing left mouse button...")
+        pyautogui.mouseDown(button='left')
+        time.sleep(0.2)
+        print(f"  [OK] Mouse button pressed")
+        
+        print(f"  c) Dragging to end position...")
+        pyautogui.moveTo(text_box_x2, text_box_y2, duration=0.5)
+        time.sleep(0.2)
+        print(f"  [OK] Dragged to end position")
+        
+        print(f"  d) Releasing mouse button...")
+        pyautogui.mouseUp(button='left')
+        time.sleep(0.8)
+        print(f"  [OK] Mouse released - text box should be created")
 
-        pyautogui.moveTo(canvas_x1, canvas_y1)
-        pyautogui.mouseDown()
-        pyautogui.moveTo(canvas_x2, canvas_y2, duration=0.5)
-        pyautogui.mouseUp()
+        # Step 3: Type text directly (more reliable than clipboard)
+        print(f"\nStep 3: Typing text...")
+        pyautogui.typewrite(text, interval=0.05)
         time.sleep(0.5)
+        print(f"[OK] Text typed: {text}")
+        
+        # Alternative: Use clipboard if typewrite fails
+        # import pyperclip
+        # pyperclip.copy(text)
+        # pyautogui.hotkey('ctrl', 'v')
 
-        # Paste text using clipboard
-        import pyperclip
-        pyperclip.copy(text)
-        pyautogui.hotkey('ctrl', 'v')
-        time.sleep(1)  # wait for text to appear
-
+        print("\n[SUCCESS] Text added to Paint!")
+        print("="*60 + "\n")
+        
         return {
-            "content": [TextContent(type="text", text=f"Text '{text}' added in Paint at ({canvas_x1},{canvas_y1})")]
+            "content": [TextContent(type="text", text=f"Text '{text}' added in Paint at ({text_box_x1},{text_box_y1})")]
         }
 
     except Exception as e:
-        return {"content": [TextContent(type="text", text=f"Error: {str(e)}")]}
+        error_msg = f"Error: {str(e)}"
+        print(f"\n[ERROR] {error_msg}")
+        print("="*60 + "\n")
+        import traceback
+        traceback.print_exc()
+        return {"content": [TextContent(type="text", text=error_msg)]}
 
 
 # ------------------------------------------------

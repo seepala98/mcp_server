@@ -136,8 +136,11 @@ Important:
     - CALL THIS ONLY ONCE
   * Second call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|250|250|1702|922)
     - This draws the rectangle by clicking and dragging from (x1,y1) to (x2,y2)
-  * Third call: add_text_in_paint|your_final_answer (e.g., add_text_in_paint|FINAL_ANSWER: [42])
-    - This adds text inside the rectangle
+  * Third call: add_text_in_paint|text|text_tool_x|text_tool_y|text_box_x1|text_box_y1|text_box_x2|text_box_y2
+    - Example: add_text_in_paint|FINAL_ANSWER: [42]|347|98|400|400|800|500
+    - This clicks the text tool, creates a text box, and types the text
+    - text_tool_x, text_tool_y: coordinates of the text tool icon (usually around 347,98)
+    - text_box coordinates: where to create the text box inside the rectangle
 - Do not repeat function calls with the same parameters
 - Rectangle should start at (250, 250) and extend to appropriate bottom-right coordinates
 
@@ -146,7 +149,7 @@ Examples:
 - FUNCTION_CALL: int_list_to_exponential_sum|73,78,68,73,65
 - FUNCTION_CALL: open_paint_and_select_rectangle|530|85
 - FUNCTION_CALL: draw_rectangle|250|250|1702|922
-- FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
+- FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]|347|98|400|400|800|500
 
 DO NOT include any explanations or additional text.
 Your entire response should be a single line starting with FUNCTION_CALL:"""
