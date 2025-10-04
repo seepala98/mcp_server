@@ -178,58 +178,60 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
                 ]
             }
         
-        print("✓ Paint app is open")
+        print("[OK] Paint app is open")
         
         # Get the Paint window
         print("Step 1: Getting Paint window...")
         paint_window = paint_app.window(class_name='MSPaintApp')
-        print("✓ Got Paint window")
+        print("[OK] Got Paint window")
         
         # Ensure Paint window is active
         print("Step 2: Activating Paint window...")
         if not paint_window.has_focus():
             paint_window.set_focus()
             time.sleep(0.5)
-            print("✓ Paint window focused")
+            print("[OK] Paint window focused")
         else:
-            print("✓ Paint window already focused")
+            print("[OK] Paint window already focused")
         
         # Step 3: Click Rectangle Tool
         rectangle_tool_coords = (658, 103)
         print(f"\nStep 3: Clicking rectangle tool at {rectangle_tool_coords}")
+        print(f"  Using paint_window.click() method...")
         try:
             paint_window.click(coords=rectangle_tool_coords)
             time.sleep(0.5)
-            print("✓ Rectangle tool clicked (using .click())")
+            print("[OK] Rectangle tool clicked (using .click())")
         except Exception as e:
-            print(f"⚠ .click() failed: {e}, trying .click_input()...")
+            print(f"[WARN] .click() failed: {e}")
+            print("  Trying paint_window.click_input() instead...")
             paint_window.click_input(coords=rectangle_tool_coords)
             time.sleep(0.5)
-            print("✓ Rectangle tool clicked (using .click_input())")
+            print("[OK] Rectangle tool clicked (using .click_input())")
         
         # Step 4: Get canvas
         print("\nStep 4: Getting canvas area...")
         canvas = paint_window.child_window(class_name='MSPaintView')
-        print("✓ Got canvas")
+        print("[OK] Got canvas")
         
         # Step 5: Draw rectangle with mouse drag
         print(f"\nStep 5: Drawing rectangle...")
         print(f"  a) Press mouse at START point: ({x1},{y1})")
         canvas.press_mouse_input(coords=(x1, y1))
         time.sleep(0.15)
-        print(f"  ✓ Mouse pressed at ({x1},{y1})")
+        print(f"  [OK] Mouse pressed at ({x1},{y1})")
         
         print(f"  b) Drag to END point: ({x2},{y2})")
         canvas.move_mouse_input(coords=(x2, y2))
         time.sleep(0.15)
-        print(f"  ✓ Mouse dragged to ({x2},{y2})")
+        print(f"  [OK] Mouse dragged to ({x2},{y2})")
         
         print(f"  c) Release mouse at ({x2},{y2})")
         canvas.release_mouse_input(coords=(x2, y2))
         time.sleep(0.2)
-        print(f"  ✓ Mouse released")
+        print(f"  [OK] Mouse released")
         
-        print("\n✅ RECTANGLE DRAWN SUCCESSFULLY!")
+        print("\n[SUCCESS] RECTANGLE DRAWN SUCCESSFULLY!")
         print("="*60 + "\n")
         
         return {
@@ -242,7 +244,7 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
         }
     except Exception as e:
         error_msg = f"Error drawing rectangle: {str(e)}"
-        print(f"\n❌ ERROR: {error_msg}")
+        print(f"\n[ERROR] {error_msg}")
         print("="*60 + "\n")
         import traceback
         traceback.print_exc()
