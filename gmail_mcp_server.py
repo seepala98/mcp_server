@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP("Gmail")
 
 # Gmail API scopes
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 
 # Configuration - Update these paths to your OAuth files
 CREDENTIALS_FILE = "credentials.json"  # Path to your OAuth credentials file

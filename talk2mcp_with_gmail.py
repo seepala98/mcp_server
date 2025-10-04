@@ -17,7 +17,7 @@ client = genai.Client(api_key=api_key)
 # ============================================================
 # CONFIGURATION - UPDATE THESE VALUES
 # ============================================================
-RECIPIENT_EMAIL = "your.email@example.com"  # TODO: Replace with actual email
+RECIPIENT_EMAIL = "seepala2@gmail.com"
 # ============================================================
 
 max_iterations = 3
