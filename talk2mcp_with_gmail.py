@@ -14,6 +14,12 @@ load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 
+# ============================================================
+# CONFIGURATION - UPDATE THESE VALUES
+# ============================================================
+RECIPIENT_EMAIL = "seepala2@gmail.com"
+# ============================================================
+
 max_iterations = 3
 last_response = None
 iteration = 0
@@ -23,7 +29,6 @@ async def generate_with_timeout(client, prompt, timeout=10):
     """Generate content with a timeout"""
     print("Starting LLM generation...")
     try:
-        # Convert the synchronous generate_content call to run in a thread
         loop = asyncio.get_event_loop()
         response = await asyncio.wait_for(
             loop.run_in_executor(
@@ -52,73 +57,95 @@ def reset_state():
     iteration_response = []
 
 async def main():
-    reset_state()  # Reset at the start of main
+    reset_state()
     print("Starting main execution...")
+    
     try:
-        # Create a single MCP server connection
-        print("Establishing connection to MCP server...")
-        server_params = StdioServerParameters(
+        # Create connections to BOTH MCP servers
+        print("\n" + "="*60)
+        print("Establishing connections to MCP servers...")
+        print("="*60)
+        
+        # Server 1: Calculator/Paint server
+        calc_server_params = StdioServerParameters(
             command="python",
             args=["mcp_server.py"]
         )
-
-        async with stdio_client(server_params) as (read, write):
-            print("Connection established, creating session...")
-            async with ClientSession(read, write) as session:
-                print("Session created, initializing...")
-                await session.initialize()
+        
+        # Server 2: Gmail server
+        gmail_server_params = StdioServerParameters(
+            command="python",
+            args=["gmail_mcp_server.py"]
+        )
+        
+        # Connect to both servers
+        async with stdio_client(calc_server_params) as (calc_read, calc_write), \
+                   stdio_client(gmail_server_params) as (gmail_read, gmail_write):
+            
+            print("✓ Connected to both servers")
+            
+            # Create sessions for both servers
+            async with ClientSession(calc_read, calc_write) as calc_session, \
+                       ClientSession(gmail_read, gmail_write) as gmail_session:
                 
-                # Get available tools
-                print("Requesting tool list...")
-                tools_result = await session.list_tools()
-                tools = tools_result.tools
-                print(f"Successfully retrieved {len(tools)} tools")
+                print("✓ Sessions created")
                 
-
-                # Create system prompt with available tools
-                print("Creating system prompt...")
-                print(f"Number of tools: {len(tools)}")
+                # Initialize both sessions
+                await calc_session.initialize()
+                await gmail_session.initialize()
+                print("✓ Sessions initialized")
                 
-                try:
-                    # First, let's inspect what a tool object looks like
-                    # if tools:
-                    #     print(f"First tool properties: {dir(tools[0])}")
-                    #     print(f"First tool example: {tools[0]}")
-                    
-                    tools_description = []
-                    for i, tool in enumerate(tools):
-                        try:
-                            # Get tool properties
-                            params = tool.inputSchema
-                            desc = getattr(tool, 'description', 'No description available')
-                            name = getattr(tool, 'name', f'tool_{i}')
-                            
-                            # Format the input schema in a more readable way
-                            if 'properties' in params:
-                                param_details = []
-                                for param_name, param_info in params['properties'].items():
-                                    param_type = param_info.get('type', 'unknown')
-                                    param_details.append(f"{param_name}: {param_type}")
-                                params_str = ', '.join(param_details)
-                            else:
-                                params_str = 'no parameters'
-
-                            tool_desc = f"{i+1}. {name}({params_str}) - {desc}"
-                            tools_description.append(tool_desc)
-                            print(f"Added description for tool: {tool_desc}")
-                        except Exception as e:
-                            print(f"Error processing tool {i}: {e}")
-                            tools_description.append(f"{i+1}. Error processing tool")
-                    
-                    tools_description = "\n".join(tools_description)
-                    print("Successfully created tools description")
-                except Exception as e:
-                    print(f"Error creating tools description: {e}")
-                    tools_description = "Error loading tools"
+                # Get tools from both servers
+                calc_tools_result = await calc_session.list_tools()
+                calc_tools = calc_tools_result.tools
+                print(f"✓ Calculator server: {len(calc_tools)} tools")
                 
-                print("Created system prompt...")
+                gmail_tools_result = await gmail_session.list_tools()
+                gmail_tools = gmail_tools_result.tools
+                print(f"✓ Gmail server: {len(gmail_tools)} tools")
                 
-                system_prompt = f"""You are a math agent solving problems in iterations. You have access to various mathematical and visualization tools.
+                # Combine all tools
+                all_tools = list(calc_tools) + list(gmail_tools)
+                print(f"✓ Total tools available: {len(all_tools)}")
+                print("="*60 + "\n")
+                
+                # Create a mapping of tool names to sessions
+                tool_to_session = {}
+                for tool in calc_tools:
+                    tool_to_session[tool.name] = calc_session
+                for tool in gmail_tools:
+                    tool_to_session[tool.name] = gmail_session
+                
+                # Create tools description
+                tools_description = []
+                for i, tool in enumerate(all_tools):
+                    try:
+                        params = tool.inputSchema
+                        desc = getattr(tool, 'description', 'No description available')
+                        name = getattr(tool, 'name', f'tool_{i}')
+                        
+                        # Format the input schema
+                        if 'properties' in params:
+                            param_details = []
+                            for param_name, param_info in params['properties'].items():
+                                param_type = param_info.get('type', 'unknown')
+                                param_details.append(f"{param_name}: {param_type}")
+                            params_str = ', '.join(param_details)
+                        else:
+                            params_str = 'no parameters'
+                        
+                        tool_desc = f"{i+1}. {name}({params_str}) - {desc}"
+                        tools_description.append(tool_desc)
+                        print(f"Added tool: {name}")
+                    except Exception as e:
+                        print(f"Error processing tool {i}: {e}")
+                        tools_description.append(f"{i+1}. Error processing tool")
+                
+                tools_description = "\n".join(tools_description)
+                print("\n✓ Tools description created\n")
+                
+                # Create system prompt with Gmail integration
+                system_prompt = f"""You are a math agent solving problems in iterations. You have access to various mathematical, visualization, and email tools.
 
 Available tools:
 {tools_description}
@@ -130,16 +157,18 @@ You must respond with EXACTLY ONE line in one of these formats (no additional te
 Important:
 - When a function returns multiple values (like arrays), you need to process all of them
 - When passing arrays as parameters, use comma-separated values: value1,value2,value3
-- After calculating the final answer, you MUST visualize it in Paint using this EXACT sequence:
-  * First call: open_paint_and_select_rectangle|rect_tool_x|rect_tool_y (e.g., open_paint_and_select_rectangle|530|85)
-    - This opens Paint, maximizes it, and clicks the rectangle tool
-    - CALL THIS ONLY ONCE
-  * Second call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|250|250|1702|922)
-    - This draws the rectangle by clicking and dragging from (x1,y1) to (x2,y2)
-  * Third call: add_text_in_paint|text
-    - Example: add_text_in_paint|FINAL_ANSWER: [42]
-    - This clicks the text tool, creates a text box, and types the text
-    - text_tool_x, text_tool_y: coordinates of the text tool icon (usually around 347,98)
+- After calculating the final answer, you MUST:
+  1. Visualize it in Paint using this sequence:
+     * First call: open_paint_and_select_rectangle|rect_tool_x|rect_tool_y (e.g., open_paint_and_select_rectangle|530|85)
+       - This opens Paint, maximizes it, and clicks the rectangle tool
+       - CALL THIS ONLY ONCE
+     * Second call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|250|250|1702|922)
+       - This draws the rectangle by clicking and dragging from (x1,y1) to (x2,y2)
+     * Third call: add_text_in_paint|your_final_answer (e.g., add_text_in_paint|FINAL_ANSWER: [42])
+       - This adds text inside the rectangle
+  2. Send the result via email:
+     * Final call: send_email|{RECIPIENT_EMAIL}|Calculation Result|Your final answer message
+       - Example: send_email|{RECIPIENT_EMAIL}|INDIA ASCII Sum Result|The exponential sum is: 1.234e56
 - Do not repeat function calls with the same parameters
 
 Examples:
@@ -148,103 +177,98 @@ Examples:
 - FUNCTION_CALL: open_paint_and_select_rectangle|530|85
 - FUNCTION_CALL: draw_rectangle|250|250|1702|922
 - FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
+- FUNCTION_CALL: send_email|{RECIPIENT_EMAIL}|Calculation Complete|Final answer: 42
 
 DO NOT include any explanations or additional text.
 Your entire response should be a single line starting with FUNCTION_CALL:"""
 
-                query = """Find the ASCII values of characters in INDIA and then return sum of exponentials of those values. After getting the final answer, display it in Paint."""
-                print("Starting iteration loop...")
+                query = """Find the ASCII values of characters in INDIA and then return sum of exponentials of those values. After getting the final answer, display it in Paint and send the result via email."""
+                
                 print(f"Query: {query}\n")
                 
                 # Use global iteration variables
                 global iteration, last_response
                 
-                # Increase max iterations to allow for Paint operations
-                max_iterations_extended = 10
+                # Increase max iterations to allow for Paint + Email operations
+                max_iterations_extended = 12
                 executed_calls = set()
                 current_query = query
+                
                 while iteration < max_iterations_extended:
-                    print(f"\n--- Iteration {iteration + 1} ---")
+                    print(f"\n{'='*60}")
+                    print(f"ITERATION {iteration + 1}")
+                    print(f"{'='*60}")
+                    
                     if last_response is not None:
                         current_query = current_query + "\n\n" + " ".join(iteration_response)
                         current_query = current_query + "  What should I do next?"
-
+                    
                     # Get model's response with timeout
-                    print("Preparing to generate LLM response...")
                     prompt = f"{system_prompt}\n\nQuery: {current_query}"
                     try:
                         response = await generate_with_timeout(client, prompt)
                         response_text = response.text.strip()
                         print(f"LLM Response: {response_text}")
                         
-                        # Find the FUNCTION_CALL or FINAL_ANSWER line in the response
+                        # Find the FUNCTION_CALL or FINAL_ANSWER line
                         for line in response_text.split('\n'):
                             line = line.strip()
                             if line.startswith("FUNCTION_CALL:") or line.startswith("FINAL_ANSWER:"):
                                 response_text = line
                                 break
-                        
+                    
                     except Exception as e:
                         print(f"Failed to get LLM response: {e}")
                         break
-
-
+                    
                     if response_text.startswith("FUNCTION_CALL:"):
                         _, function_info = response_text.split(":", 1)
                         parts = [p.strip() for p in function_info.split("|")]
                         func_name, params = parts[0], parts[1:]
                         
-                        print(f"\nDEBUG: Raw function info: {function_info}")
-                        print(f"DEBUG: Split parts: {parts}")
-                        print(f"DEBUG: Function name: {func_name}")
-                        print(f"DEBUG: Raw parameters: {params}")
+                        print(f"\n>>> Function: {func_name}")
+                        print(f">>> Parameters: {params}")
                         
                         # Prevent duplicates
                         call_signature = f"{func_name}|{'|'.join(params)}"
                         if call_signature in executed_calls:
-                            print(f"⚠️ Skipping duplicate call: {call_signature}")
+                            print(f"⚠️  Skipping duplicate call: {call_signature}")
                             iteration_response.append(f"Skipped duplicate call: {call_signature}")
                             iteration += 1
-                            continue  # skip calling the tool
-
-                        executed_calls.add(call_signature)  # mark as executed
+                            continue
+                        
+                        executed_calls.add(call_signature)
                         
                         try:
-                            # Find the matching tool to get its input schema
-                            tool = next((t for t in tools if t.name == func_name), None)
+                            # Find the matching tool and session
+                            tool = next((t for t in all_tools if t.name == func_name), None)
                             if not tool:
-                                print(f"DEBUG: Available tools: {[t.name for t in tools]}")
+                                print(f"❌ Unknown tool: {func_name}")
                                 raise ValueError(f"Unknown tool: {func_name}")
-
-                            print(f"DEBUG: Found tool: {tool.name}")
-                            print(f"DEBUG: Tool schema: {tool.inputSchema}")
-
-                            # Prepare arguments according to the tool's input schema
+                            
+                            # Get the correct session for this tool
+                            session = tool_to_session[func_name]
+                            
+                            # Prepare arguments
                             arguments = {}
                             schema_properties = tool.inputSchema.get('properties', {})
-                            print(f"DEBUG: Schema properties: {schema_properties}")
-
+                            
                             for param_name, param_info in schema_properties.items():
-                                if not params:  # Check if we have enough parameters
-                                    raise ValueError(f"Not enough parameters provided for {func_name}")
-                                    
-                                value = params.pop(0)  # Get and remove the first parameter
+                                if not params:
+                                    raise ValueError(f"Not enough parameters for {func_name}")
+                                
+                                value = params.pop(0)
                                 param_type = param_info.get('type', 'string')
                                 
-                                print(f"DEBUG: Converting parameter {param_name} with value {value} to type {param_type}")
-                                
-                                # Convert the value to the correct type based on the schema
+                                # Convert to correct type
                                 if param_type == 'integer':
                                     arguments[param_name] = int(value)
                                 elif param_type == 'number':
                                     arguments[param_name] = float(value)
                                 elif param_type == 'array':
-                                    # Handle array input - accept comma-separated values or [val1,val2,val3] format
                                     if isinstance(value, str):
-                                        # Remove brackets and whitespace, then split
                                         value = value.strip('[]').replace(' ', '')
                                         value_list = value.split(',')
-                                        # Try to convert to appropriate type (int or float)
                                         try:
                                             arguments[param_name] = [int(x) for x in value_list if x]
                                         except ValueError:
@@ -256,28 +280,25 @@ Your entire response should be a single line starting with FUNCTION_CALL:"""
                                         arguments[param_name] = value
                                 else:
                                     arguments[param_name] = str(value)
-
-                            print(f"DEBUG: Final arguments: {arguments}")
-                            print(f"\n>>> Calling tool: {func_name} with arguments: {arguments}")
                             
+                            print(f">>> Calling: {func_name}({arguments})")
+                            
+                            # Call the tool on the correct session
                             result = await session.call_tool(func_name, arguments=arguments)
-                            print(f"DEBUG: Raw result: {result}")
                             
-                            # Print tool result safely
+                            # Print result
                             if hasattr(result, 'content') and result.content:
                                 first_content = result.content[0]
                                 if hasattr(first_content, 'text'):
-                                    print(f">>> Tool result: {first_content.text}")
+                                    print(f">>> Result: {first_content.text}")
                                 else:
-                                    print(f">>> Tool result: {str(first_content)}")
+                                    print(f">>> Result: {str(first_content)}")
                             else:
-                                print(f">>> Tool result: {str(result)}")
+                                print(f">>> Result: {str(result)}")
                             
                             # Get the full result content
                             iteration_result = ""
                             if hasattr(result, 'content'):
-                                print(f"DEBUG: Result has content attribute")
-                                # Handle multiple content items
                                 if isinstance(result.content, list):
                                     iteration_result_list = []
                                     for item in result.content:
@@ -289,14 +310,10 @@ Your entire response should be a single line starting with FUNCTION_CALL:"""
                                 else:
                                     iteration_result = str(result.content)
                             else:
-                                print(f"DEBUG: Result has no content attribute")
                                 iteration_result = str(result)
-                                
-                            print(f"DEBUG: Final iteration result: {iteration_result}")
                             
-                            # Format the response based on result type
+                            # Format response
                             if isinstance(iteration_result, list):
-                                # Format as comma-separated for easy re-use
                                 result_str = ','.join(str(x) for x in iteration_result)
                                 result_display = f"[{result_str}]"
                             else:
@@ -309,35 +326,49 @@ Your entire response should be a single line starting with FUNCTION_CALL:"""
                                 f"To use this result in the next function call with an array parameter, use: {result_str}"
                             )
                             last_response = iteration_result
-
+                        
                         except Exception as e:
-                            print(f"DEBUG: Error details: {str(e)}")
-                            print(f"DEBUG: Error type: {type(e)}")
+                            print(f"❌ Error: {str(e)}")
                             import traceback
                             traceback.print_exc()
                             iteration_response.append(f"Error in iteration {iteration + 1}: {str(e)}")
                             break
-
+                    
                     elif response_text.startswith("FINAL_ANSWER:"):
-                        print("\n=== Agent Execution Complete ===")
-                        print(f"Final answer received: {response_text}")
-                        # Agent should have already called Paint functions
-                        # Just record this as the final response
+                        print("\n" + "="*60)
+                        print("AGENT EXECUTION COMPLETE")
+                        print("="*60)
+                        print(f"Final answer: {response_text}")
                         iteration_response.append(f"Agent completed with: {response_text}")
                         break
                     
                     else:
-                        print(f"Unexpected response format: {response_text}")
+                        print(f"⚠️  Unexpected response format: {response_text}")
                         break
-
+                    
                     iteration += 1
-
+                
+                print("\n" + "="*60)
+                print("EXECUTION FINISHED")
+                print(f"Total iterations: {iteration}")
+                print("="*60)
+    
     except Exception as e:
-        print(f"Error in main execution: {e}")
+        print(f"❌ Error in main execution: {e}")
         import traceback
         traceback.print_exc()
     finally:
-        reset_state()  # Reset at the end of main
+        reset_state()
 
 if __name__ == "__main__":
+    print("\n" + "="*60)
+    print("MULTI-SERVER MCP AGENT WITH GMAIL INTEGRATION")
+    print("="*60)
+    print(f"Recipient Email: {RECIPIENT_EMAIL}")
+    print("="*60 + "\n")
+    
+    if RECIPIENT_EMAIL == "your.email@example.com":
+        print("⚠️  WARNING: Please update RECIPIENT_EMAIL in this file!")
+        print("="*60 + "\n")
+    
     asyncio.run(main())
