@@ -172,29 +172,51 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
             }
         
         # Get the Paint window
+        print("DEBUG: Getting Paint window...")
         paint_window = paint_app.window(class_name='MSPaintApp')
         
         # Ensure Paint window is active
+        print("DEBUG: Activating Paint window...")
         if not paint_window.has_focus():
             paint_window.set_focus()
-            time.sleep(0.2)
+            time.sleep(0.5)
         
         print(f"DEBUG: Drawing rectangle from ({x1},{y1}) to ({x2},{y2})")
         
-        # Click on the Rectangle tool in the ribbon
-        paint_window.click_input(coords=(530, 82))
-        time.sleep(0.2)
+        # Click on the Rectangle tool in the ribbon at the specified coordinates
+        rectangle_tool_coords = (658, 103)
+        print(f"DEBUG: Clicking rectangle tool at {rectangle_tool_coords}")
+        try:
+            # Use click instead of click_input for more reliable clicking
+            paint_window.click(coords=rectangle_tool_coords)
+            time.sleep(0.5)  # Give Paint time to select the tool
+            print("DEBUG: Rectangle tool clicked successfully")
+        except Exception as e:
+            print(f"DEBUG: Error clicking rectangle tool: {e}")
+            # Fallback to click_input
+            paint_window.click_input(coords=rectangle_tool_coords)
+            time.sleep(0.5)
         
         # Get the canvas area
+        print("DEBUG: Getting canvas area...")
         canvas = paint_window.child_window(class_name='MSPaintView')
         
         # Draw rectangle - coordinates are relative to the Paint window
+        # Typical starting point: (366, 399) for top-left corner
         # No offset needed since we're on primary monitor now
+        print(f"DEBUG: Starting to draw - Pressing mouse at ({x1},{y1})")
         canvas.press_mouse_input(coords=(x1, y1))
-        canvas.move_mouse_input(coords=(x2, y2))
-        canvas.release_mouse_input(coords=(x2, y2))
+        time.sleep(0.1)
         
-        print(f"DEBUG: Rectangle drawn successfully")
+        print(f"DEBUG: Dragging to ({x2},{y2})")
+        canvas.move_mouse_input(coords=(x2, y2))
+        time.sleep(0.1)
+        
+        print(f"DEBUG: Releasing mouse at ({x2},{y2})")
+        canvas.release_mouse_input(coords=(x2, y2))
+        time.sleep(0.2)
+        
+        print(f"DEBUG: Rectangle drawn successfully!")
         
         return {
             "content": [
@@ -281,11 +303,24 @@ async def add_text_in_paint(text: str) -> dict:
 
 @mcp.tool()
 async def open_paint() -> dict:
-    """Open Microsoft Paint maximized on primary monitor"""
+    """Open Microsoft Paint maximized on primary monitor. Only call this ONCE."""
     global paint_app
     try:
+        # Check if Paint is already open
+        if paint_app is not None:
+            print("DEBUG: Paint is already open, skipping open_paint")
+            return {
+                "content": [
+                    TextContent(
+                        type="text",
+                        text="Paint is already open. No need to open again."
+                    )
+                ]
+            }
+        
+        print("DEBUG: Starting Paint application...")
         paint_app = Application().start('mspaint.exe')
-        time.sleep(0.2)
+        time.sleep(0.5)
         
         # Get the Paint window
         paint_window = paint_app.window(class_name='MSPaintApp')
@@ -307,7 +342,9 @@ async def open_paint() -> dict:
         
         # Now maximize the window on primary monitor
         win32gui.ShowWindow(paint_window.handle, win32con.SW_MAXIMIZE)
-        time.sleep(0.5)  # Give Paint time to maximize
+        time.sleep(0.8)  # Give Paint time to maximize and stabilize
+        
+        print("DEBUG: Paint opened and maximized successfully")
         
         return {
             "content": [
@@ -318,6 +355,7 @@ async def open_paint() -> dict:
             ]
         }
     except Exception as e:
+        print(f"DEBUG: Error opening Paint: {str(e)}")
         return {
             "content": [
                 TextContent(
