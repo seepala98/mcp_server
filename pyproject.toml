@@ -1,0 +1,15 @@
+[project]
+name = "mcp-server"
+version = "0.1.0"
+description = "MCP Server with Paint integration for Windows"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.16.0",
+    "pillow>=11.3.0",
+    "pywinauto>=0.6.9",
+    "python-dotenv>=1.0.0",
+    "google-genai>=0.3.0",
+    "pywin32>=306",
+]

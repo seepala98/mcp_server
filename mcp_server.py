@@ -15,6 +15,9 @@ from win32api import GetSystemMetrics
 # instantiate an MCP server client
 mcp = FastMCP("Calculator")
 
+# Global variable for Paint application
+paint_app = None
+
 # DEFINE TOOLS
 
 #addition tool

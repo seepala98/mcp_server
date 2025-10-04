@@ -117,9 +117,8 @@ async def main():
                     tools_description = "Error loading tools"
                 
                 print("Created system prompt...")
-                import pdb; pdb.set_trace()
                 
-                system_prompt = f"""You are a math agent solving problems in iterations. You have access to various mathematical tools.
+                system_prompt = f"""You are a math agent solving problems in iterations. You have access to various mathematical and visualization tools.
 
 Available tools:
 {tools_description}
@@ -127,34 +126,40 @@ Available tools:
 You must respond with EXACTLY ONE line in one of these formats (no additional text):
 1. For function calls:
    FUNCTION_CALL: function_name|param1|param2|...
-   
-2. For final answers:
-   FINAL_ANSWER: [number]
 
 Important:
 - When a function returns multiple values, you need to process all of them
-- Only give FINAL_ANSWER when you have completed all necessary calculations
+- After calculating the final answer, you MUST visualize it in Paint:
+  * First call: open_paint (no parameters)
+  * Then call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|200|150|500|350)
+  * Finally call: add_text_in_paint|your_final_answer (e.g., add_text_in_paint|FINAL_ANSWER: [42])
 - Do not repeat function calls with the same parameters
+- Always complete the Paint visualization sequence after getting the final answer
 
 Examples:
 - FUNCTION_CALL: add|5|3
 - FUNCTION_CALL: strings_to_chars_to_int|INDIA
-- FINAL_ANSWER: [42]
+- FUNCTION_CALL: open_paint
+- FUNCTION_CALL: draw_rectangle|200|150|500|350
+- FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
 
 DO NOT include any explanations or additional text.
-Your entire response should be a single line starting with either FUNCTION_CALL: or FINAL_ANSWER:"""
+Your entire response should be a single line starting with FUNCTION_CALL:"""
 
-                query = """Find the ASCII values of characters in INDIA and then return sum of exponentials of those values. """
+                query = """Find the ASCII values of characters in INDIA and then return sum of exponentials of those values. After getting the final answer, display it in Paint."""
                 print("Starting iteration loop...")
+                print(f"Query: {query}\n")
                 
                 # Use global iteration variables
                 global iteration, last_response
                 
-                while iteration < max_iterations:
+                # Increase max iterations to allow for Paint operations
+                max_iterations_extended = 10
+                
+                current_query = query
+                while iteration < max_iterations_extended:
                     print(f"\n--- Iteration {iteration + 1} ---")
-                    if last_response is None:
-                        current_query = query
-                    else:
+                    if last_response is not None:
                         current_query = current_query + "\n\n" + " ".join(iteration_response)
                         current_query = current_query + "  What should I do next?"
 
@@ -166,10 +171,10 @@ Your entire response should be a single line starting with either FUNCTION_CALL:
                         response_text = response.text.strip()
                         print(f"LLM Response: {response_text}")
                         
-                        # Find the FUNCTION_CALL line in the response
+                        # Find the FUNCTION_CALL or FINAL_ANSWER line in the response
                         for line in response_text.split('\n'):
                             line = line.strip()
-                            if line.startswith("FUNCTION_CALL:"):
+                            if line.startswith("FUNCTION_CALL:") or line.startswith("FINAL_ANSWER:"):
                                 response_text = line
                                 break
                         
@@ -226,20 +231,34 @@ Your entire response should be a single line starting with either FUNCTION_CALL:
                                     arguments[param_name] = str(value)
 
                             print(f"DEBUG: Final arguments: {arguments}")
-                            print(f"DEBUG: Calling tool {func_name}")
+                            print(f"\n>>> Calling tool: {func_name} with arguments: {arguments}")
                             
                             result = await session.call_tool(func_name, arguments=arguments)
                             print(f"DEBUG: Raw result: {result}")
                             
+                            # Print tool result safely
+                            if hasattr(result, 'content') and result.content:
+                                first_content = result.content[0]
+                                if hasattr(first_content, 'text'):
+                                    print(f">>> Tool result: {first_content.text}")
+                                else:
+                                    print(f">>> Tool result: {str(first_content)}")
+                            else:
+                                print(f">>> Tool result: {str(result)}")
+                            
                             # Get the full result content
+                            iteration_result = ""
                             if hasattr(result, 'content'):
                                 print(f"DEBUG: Result has content attribute")
                                 # Handle multiple content items
                                 if isinstance(result.content, list):
-                                    iteration_result = [
-                                        item.text if hasattr(item, 'text') else str(item)
-                                        for item in result.content
-                                    ]
+                                    iteration_result_list = []
+                                    for item in result.content:
+                                        if hasattr(item, 'text'):
+                                            iteration_result_list.append(item.text)
+                                        else:
+                                            iteration_result_list.append(str(item))
+                                    iteration_result = iteration_result_list
                                 else:
                                     iteration_result = str(result.content)
                             else:
@@ -270,32 +289,14 @@ Your entire response should be a single line starting with either FUNCTION_CALL:
 
                     elif response_text.startswith("FINAL_ANSWER:"):
                         print("\n=== Agent Execution Complete ===")
-                        result = await session.call_tool("open_paint")
-                        print(result.content[0].text)
-
-                        # Wait longer for Paint to be fully maximized
-                        await asyncio.sleep(1)
-
-                        # Draw a rectangle
-                        result = await session.call_tool(
-                            "draw_rectangle",
-                            arguments={
-                                "x1": 780,
-                                "y1": 380,
-                                "x2": 1140,
-                                "y2": 700
-                            }
-                        )
-                        print(result.content[0].text)
-
-                        # Draw rectangle and add text
-                        result = await session.call_tool(
-                            "add_text_in_paint",
-                            arguments={
-                                "text": response_text
-                            }
-                        )
-                        print(result.content[0].text)
+                        print(f"Final answer received: {response_text}")
+                        # Agent should have already called Paint functions
+                        # Just record this as the final response
+                        iteration_response.append(f"Agent completed with: {response_text}")
+                        break
+                    
+                    else:
+                        print(f"Unexpected response format: {response_text}")
                         break
 
                     iteration += 1
@@ -309,5 +310,3 @@ Your entire response should be a single line starting with either FUNCTION_CALL:
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
-    
