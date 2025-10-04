@@ -128,7 +128,8 @@ You must respond with EXACTLY ONE line in one of these formats (no additional te
    FUNCTION_CALL: function_name|param1|param2|...
 
 Important:
-- When a function returns multiple values, you need to process all of them
+- When a function returns multiple values (like arrays), you need to process all of them
+- When passing arrays as parameters, use comma-separated values: value1,value2,value3
 - After calculating the final answer, you MUST visualize it in Paint:
   * First call: open_paint (no parameters)
   * Then call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|200|150|500|350)
@@ -139,6 +140,8 @@ Important:
 Examples:
 - FUNCTION_CALL: add|5|3
 - FUNCTION_CALL: strings_to_chars_to_int|INDIA
+- FUNCTION_CALL: int_list_to_exponential_sum|73,78,68,73,65
+- FUNCTION_CALL: add_list|10,20,30,40
 - FUNCTION_CALL: open_paint
 - FUNCTION_CALL: draw_rectangle|200|150|500|350
 - FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
@@ -223,10 +226,21 @@ Your entire response should be a single line starting with FUNCTION_CALL:"""
                                 elif param_type == 'number':
                                     arguments[param_name] = float(value)
                                 elif param_type == 'array':
-                                    # Handle array input
+                                    # Handle array input - accept comma-separated values or [val1,val2,val3] format
                                     if isinstance(value, str):
-                                        value = value.strip('[]').split(',')
-                                    arguments[param_name] = [int(x.strip()) for x in value]
+                                        # Remove brackets and whitespace, then split
+                                        value = value.strip('[]').replace(' ', '')
+                                        value_list = value.split(',')
+                                        # Try to convert to appropriate type (int or float)
+                                        try:
+                                            arguments[param_name] = [int(x) for x in value_list if x]
+                                        except ValueError:
+                                            try:
+                                                arguments[param_name] = [float(x) for x in value_list if x]
+                                            except ValueError:
+                                                arguments[param_name] = [x for x in value_list if x]
+                                    else:
+                                        arguments[param_name] = value
                                 else:
                                     arguments[param_name] = str(value)
 
@@ -269,13 +283,17 @@ Your entire response should be a single line starting with FUNCTION_CALL:"""
                             
                             # Format the response based on result type
                             if isinstance(iteration_result, list):
-                                result_str = f"[{', '.join(iteration_result)}]"
+                                # Format as comma-separated for easy re-use
+                                result_str = ','.join(str(x) for x in iteration_result)
+                                result_display = f"[{result_str}]"
                             else:
                                 result_str = str(iteration_result)
+                                result_display = result_str
                             
                             iteration_response.append(
-                                f"In the {iteration + 1} iteration you called {func_name} with {arguments} parameters, "
-                                f"and the function returned {result_str}."
+                                f"In iteration {iteration + 1} you called {func_name} with {arguments} parameters, "
+                                f"and the function returned {result_display}. "
+                                f"To use this result in the next function call with an array parameter, use: {result_str}"
                             )
                             last_response = iteration_result
 
