@@ -142,10 +142,8 @@ Important:
 - Rectangle should start at (366, 399) and extend to appropriate bottom-right coordinates
 
 Examples:
-- FUNCTION_CALL: add|5|3
 - FUNCTION_CALL: strings_to_chars_to_int|INDIA
 - FUNCTION_CALL: int_list_to_exponential_sum|73,78,68,73,65
-- FUNCTION_CALL: add_list|10,20,30,40
 - FUNCTION_CALL: open_paint_and_select_rectangle|658|103
 - FUNCTION_CALL: draw_rectangle|366|399|766|649
 - FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
