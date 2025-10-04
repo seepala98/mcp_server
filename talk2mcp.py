@@ -131,11 +131,12 @@ Important:
 - When a function returns multiple values (like arrays), you need to process all of them
 - When passing arrays as parameters, use comma-separated values: value1,value2,value3
 - After calculating the final answer, you MUST visualize it in Paint:
-  * First call: open_paint (no parameters)
-  * Then call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|200|150|500|350)
+  * First call: open_paint (no parameters) - opens on primary monitor
+  * Then call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|300|200|700|450)
   * Finally call: add_text_in_paint|your_final_answer (e.g., add_text_in_paint|FINAL_ANSWER: [42])
 - Do not repeat function calls with the same parameters
 - Always complete the Paint visualization sequence after getting the final answer
+- Rectangle coordinates are relative to Paint canvas (typical safe range: x: 200-800, y: 150-550)
 
 Examples:
 - FUNCTION_CALL: add|5|3
@@ -143,7 +144,7 @@ Examples:
 - FUNCTION_CALL: int_list_to_exponential_sum|73,78,68,73,65
 - FUNCTION_CALL: add_list|10,20,30,40
 - FUNCTION_CALL: open_paint
-- FUNCTION_CALL: draw_rectangle|200|150|500|350
+- FUNCTION_CALL: draw_rectangle|300|200|700|450
 - FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
 
 DO NOT include any explanations or additional text.

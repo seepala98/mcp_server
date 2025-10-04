@@ -174,26 +174,27 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
         # Get the Paint window
         paint_window = paint_app.window(class_name='MSPaintApp')
         
-        # Get primary monitor width to adjust coordinates
-        primary_width = GetSystemMetrics(0)
-        
         # Ensure Paint window is active
         if not paint_window.has_focus():
             paint_window.set_focus()
             time.sleep(0.2)
         
-        # Click on the Rectangle tool using the correct coordinates for secondary screen
-        paint_window.click_input(coords=(530, 82 ))
+        print(f"DEBUG: Drawing rectangle from ({x1},{y1}) to ({x2},{y2})")
+        
+        # Click on the Rectangle tool in the ribbon
+        paint_window.click_input(coords=(530, 82))
         time.sleep(0.2)
         
         # Get the canvas area
         canvas = paint_window.child_window(class_name='MSPaintView')
         
-        # Draw rectangle - coordinates should already be relative to the Paint window
-        # No need to add primary_width since we're clicking within the Paint window
-        canvas.press_mouse_input(coords=(x1+2560, y1))
-        canvas.move_mouse_input(coords=(x2+2560, y2))
-        canvas.release_mouse_input(coords=(x2+2560, y2))
+        # Draw rectangle - coordinates are relative to the Paint window
+        # No offset needed since we're on primary monitor now
+        canvas.press_mouse_input(coords=(x1, y1))
+        canvas.move_mouse_input(coords=(x2, y2))
+        canvas.release_mouse_input(coords=(x2, y2))
+        
+        print(f"DEBUG: Rectangle drawn successfully")
         
         return {
             "content": [
@@ -280,7 +281,7 @@ async def add_text_in_paint(text: str) -> dict:
 
 @mcp.tool()
 async def open_paint() -> dict:
-    """Open Microsoft Paint maximized on secondary monitor"""
+    """Open Microsoft Paint maximized on primary monitor"""
     global paint_app
     try:
         paint_app = Application().start('mspaint.exe')
@@ -289,27 +290,30 @@ async def open_paint() -> dict:
         # Get the Paint window
         paint_window = paint_app.window(class_name='MSPaintApp')
         
-        # Get primary monitor width
-        primary_width = GetSystemMetrics(0)
+        # Get primary monitor dimensions
+        primary_width = GetSystemMetrics(0)  # SM_CXSCREEN
+        primary_height = GetSystemMetrics(1)  # SM_CYSCREEN
         
-        # First move to secondary monitor without specifying size
+        print(f"DEBUG: Primary monitor dimensions: {primary_width}x{primary_height}")
+        
+        # Position on primary monitor (0, 0)
         win32gui.SetWindowPos(
             paint_window.handle,
             win32con.HWND_TOP,
-            primary_width + 1, 0,  # Position it on secondary monitor
+            0, 0,  # Position at top-left of primary monitor
             0, 0,  # Let Windows handle the size
             win32con.SWP_NOSIZE  # Don't change the size
         )
         
-        # Now maximize the window
+        # Now maximize the window on primary monitor
         win32gui.ShowWindow(paint_window.handle, win32con.SW_MAXIMIZE)
-        time.sleep(0.2)
+        time.sleep(0.5)  # Give Paint time to maximize
         
         return {
             "content": [
                 TextContent(
                     type="text",
-                    text="Paint opened successfully on secondary monitor and maximized"
+                    text=f"Paint opened successfully on primary monitor ({primary_width}x{primary_height}) and maximized"
                 )
             ]
         }
