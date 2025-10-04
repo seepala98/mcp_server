@@ -130,13 +130,15 @@ You must respond with EXACTLY ONE line in one of these formats (no additional te
 Important:
 - When a function returns multiple values (like arrays), you need to process all of them
 - When passing arrays as parameters, use comma-separated values: value1,value2,value3
-- After calculating the final answer, you MUST visualize it in Paint:
-  * First call: open_paint (no parameters) - opens on primary monitor (CALL ONLY ONCE!)
-  * Then call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|366|399|766|649)
-  * Finally call: add_text_in_paint|your_final_answer (e.g., add_text_in_paint|FINAL_ANSWER: [42])
-- NEVER call open_paint more than once - it will open multiple Paint windows
+- After calculating the final answer, you MUST visualize it in Paint using this EXACT sequence:
+  * First call: open_paint_and_select_rectangle|rect_tool_x|rect_tool_y (e.g., open_paint_and_select_rectangle|658|103)
+    - This opens Paint, maximizes it, and clicks the rectangle tool
+    - CALL THIS ONLY ONCE
+  * Second call: draw_rectangle|x1|y1|x2|y2 (e.g., draw_rectangle|366|399|766|649)
+    - This draws the rectangle by clicking and dragging from (x1,y1) to (x2,y2)
+  * Third call: add_text_in_paint|your_final_answer (e.g., add_text_in_paint|FINAL_ANSWER: [42])
+    - This adds text inside the rectangle
 - Do not repeat function calls with the same parameters
-- Always complete the Paint visualization sequence after getting the final answer
 - Rectangle should start at (366, 399) and extend to appropriate bottom-right coordinates
 
 Examples:
@@ -144,7 +146,7 @@ Examples:
 - FUNCTION_CALL: strings_to_chars_to_int|INDIA
 - FUNCTION_CALL: int_list_to_exponential_sum|73,78,68,73,65
 - FUNCTION_CALL: add_list|10,20,30,40
-- FUNCTION_CALL: open_paint
+- FUNCTION_CALL: open_paint_and_select_rectangle|658|103
 - FUNCTION_CALL: draw_rectangle|366|399|766|649
 - FUNCTION_CALL: add_text_in_paint|FINAL_ANSWER: [42]
 
