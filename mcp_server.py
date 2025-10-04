@@ -195,8 +195,12 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
             print("[OK] Paint window already focused")
         
         # Step 3: Click Rectangle Tool
+        # IMPORTANT: If rectangle tool is not being selected, run:
+        #   python test_paint_click.py
+        # to find the correct coordinates for your Paint
         rectangle_tool_coords = (658, 103)
         print(f"\nStep 3: Clicking rectangle tool at {rectangle_tool_coords}")
+        print(f"  NOTE: If this doesn't work, run 'python test_paint_click.py' to find correct coords")
         print(f"  Using paint_window.click() method...")
         try:
             paint_window.click(coords=rectangle_tool_coords)
@@ -208,6 +212,10 @@ async def draw_rectangle(x1: int, y1: int, x2: int, y2: int) -> dict:
             paint_window.click_input(coords=rectangle_tool_coords)
             time.sleep(0.5)
             print("[OK] Rectangle tool clicked (using .click_input())")
+        
+        # Give user a moment to visually verify if needed (can remove this in production)
+        print("  Waiting 1 second to ensure tool is selected...")
+        time.sleep(1)
         
         # Step 4: Get canvas
         print("\nStep 4: Getting canvas area...")
