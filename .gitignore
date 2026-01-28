@@ -1,1 +1,11 @@
 .env
+
+*.pdf
+*.log
+*.tmp
+.DS_Store
+
+# ignore all json files 
+*.json
+# except package.json and package-lock.json
+

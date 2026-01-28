@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Credentials
+*.json  
+
+# all env files 
+*.env
+
+# ignore all files that are part of uv run 
+uv.lock
