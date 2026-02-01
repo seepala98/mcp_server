@@ -18,25 +18,140 @@ def load_resume():
     with open("resume_text.txt", "r") as f:
         return f.read()
 
-def fetch_job_description(url):
-    try:
-        response = requests.get(url, timeout=15)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            # Extract main text
-            # This is tricky because Glassdoor uses JS or has complex DOM
-            # Attempting to find description div
-            desc = soup.find('div', {'id': 'JobDescriptionContainer'})
-            if not desc:
-                desc = soup.find('div', {'class': 'jobDescriptionContent'})
+import random
+import time
+from typing import Optional
+
+# Rotating user agents to mimic different browsers
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.2; rv:121.0) Gecko/20100101 Firefox/121.0"
+]
+
+# Proxy configuration (optional, uncomment if using proxies)
+# PROXIES = [
+#     "http://proxy1:port",
+#     "http://proxy2:port",
+#     "http://proxy3:port"
+# ]
+
+def fetch_job_description(url, retries=3, delay=2):
+    """
+    Fetch job description from Glassdoor with anti-bot protections.
+    
+    Args:
+        url: Job listing URL
+        retries: Number of retry attempts
+        delay: Initial delay between retries (exponential backoff)
+    
+    Returns:
+        Job description text or "Description Unavailable"
+    """
+    for attempt in range(retries):
+        try:
+            # Random user agent to mimic different browsers
+            headers = {
+                "User-Agent": random.choice(USER_AGENTS),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Cache-Control": "max-age=0"
+            }
             
-            if desc:
-                return desc.get_text().strip()
-            return soup.get_text().strip()[:2000] # Fallback to first 2k chars
-        return "Description Unavailable"
-    except Exception as e:
-        print(f"Error fetching job desc: {e}")
-        return "Description Unavailable"
+            # Optional proxy rotation
+            # proxies = {"http": random.choice(PROXIES), "https": random.choice(PROXIES)} if PROXIES else None
+            
+            response = requests.get(
+                url, 
+                headers=headers,
+                # proxies=proxies,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Try different selectors for job description
+                desc = None
+                
+                # Common Glassdoor job description selectors
+                selectors = [
+                    {'id': 'JobDescriptionContainer'},
+                    {'class': 'jobDescriptionContent'},
+                    {'class': 'job-description'},
+                    {'class': 'jobDescription'},
+                    {'data-test': 'job-description'},
+                    {'class': 'description'},
+                    {'class': 'job-details'}
+                ]
+                
+                for selector in selectors:
+                    if 'id' in selector:
+                        desc = soup.find('div', {'id': selector['id']})
+                    else:
+                        desc = soup.find('div', {'class': selector['class']})
+                    if desc:
+                        break
+                
+                if desc:
+                    # Clean up the text
+                    text = desc.get_text().strip()
+                    # Remove extra newlines and whitespace
+                    text = re.sub(r'\s+', ' ', text)
+                    return text
+                
+                # Fallback to first 3000 characters of page text if no description found
+                fallback_text = soup.get_text().strip()[:3000]
+                return re.sub(r'\s+', ' ', fallback_text)
+                
+            elif response.status_code == 429:
+                # Too many requests - exponential backoff
+                wait_time = delay * (2 ** attempt) + random.uniform(0, 1)
+                print(f"Rate limited (429), waiting {wait_time:.2f} seconds...")
+                time.sleep(wait_time)
+                continue
+                
+            elif response.status_code in [500, 502, 503, 504]:
+                # Server errors - retry
+                wait_time = delay * (2 ** attempt) + random.uniform(0, 1)
+                print(f"Server error ({response.status_code}), waiting {wait_time:.2f} seconds...")
+                time.sleep(wait_time)
+                continue
+                
+            else:
+                print(f"Unexpected status code: {response.status_code} for URL: {url}")
+                return "Description Unavailable"
+                
+        except requests.exceptions.Timeout:
+            print(f"Timeout on attempt {attempt + 1} for URL: {url}")
+            if attempt < retries - 1:
+                wait_time = delay * (2 ** attempt) + random.uniform(0, 1)
+                time.sleep(wait_time)
+                continue
+                
+        except requests.exceptions.ConnectionError:
+            print(f"Connection error on attempt {attempt + 1} for URL: {url}")
+            if attempt < retries - 1:
+                wait_time = delay * (2 ** attempt) + random.uniform(0, 1)
+                time.sleep(wait_time)
+                continue
+                
+        except Exception as e:
+            print(f"Error fetching job desc (attempt {attempt + 1}): {e}")
+            if attempt < retries - 1:
+                wait_time = delay * (2 ** attempt) + random.uniform(0, 1)
+                time.sleep(wait_time)
+                continue
+    
+    # All attempts failed
+    print(f"Failed to fetch job description after {retries} attempts for URL: {url}")
+    return "Description Unavailable"
 
 def evaluate_job(resume_text, job_title, company, job_description):
     prompt = f"""
@@ -72,7 +187,7 @@ def evaluate_job(resume_text, job_title, company, job_description):
     
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
+            model="gemini-flash-lite-latest",
             contents=prompt,
             config={
                 'response_mime_type': 'application/json',
@@ -105,9 +220,11 @@ def main():
     for job in jobs:
         print(f"Evaluating: {job['title']} at {job['company']}...")
         
-        # In a real scenario, we'd fetch the URL content
-        # job_desc = fetch_job_description(job['link'])
-        job_desc = "Full job description extraction requires advanced scraping/browser. Using Title/Company context."
+        # Fetch the actual job description from the Glassdoor URL
+        job_desc = fetch_job_description(job['link'])
+        
+        # Add random delay between requests to avoid rate limiting
+        time.sleep(random.uniform(2, 5))
         
         evaluation = evaluate_job(resume_text, job['title'], job['company'], job_desc)
         
